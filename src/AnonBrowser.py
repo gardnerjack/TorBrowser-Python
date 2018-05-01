@@ -6,7 +6,7 @@ import socket
 from stem import Signal
 from stem.control import Controller
 
-class TorBrowser(object):
+class AnonBrowser(object):
 
     def __init__(self):
         self.num_requests = 0
