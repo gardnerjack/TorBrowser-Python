@@ -12,6 +12,7 @@ from stem import Signal
 from stem.control import Controller
 from stem.connection import authenticate_password, authenticate_none
 
+
 class AnonBrowser(object):
 
     def __init__(self, limit=5):
@@ -21,7 +22,7 @@ class AnonBrowser(object):
         self.tor_port = 9050
         self.tor_host = "localhost"
         self.ctrl_port = 9051
-        
+
         self.TorController = None
         self._initTorController()
 
@@ -64,7 +65,7 @@ class AnonBrowser(object):
         new_ip = None
         while attempts < 5:
             self._newCircuit()
-            new_ip = self.check_ip
+            new_ip = self.check_ip()
             if new_ip == self.ip:
                 print("IP did not successfully rotate. Retrying ...")
                 time.sleep(1)
@@ -81,8 +82,9 @@ class AnonBrowser(object):
             self.num_requests = 0
 
     def check_ip(self):
-        return requests.get("http://www.icanhazip.com").text[:-2]
+        return requests.get("http://www.icanhazip.com").text[:-1]
 
     def get(self, url):
         page = requests.get(url)
+        self._update_requests()
         return BeautifulSoup(page.content, parser='html_parser')
