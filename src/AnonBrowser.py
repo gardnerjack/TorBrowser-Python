@@ -10,12 +10,12 @@ from bs4 import BeautifulSoup
 
 from stem import Signal
 from stem.control import Controller
-from stem.connection import authenticate_password, authenticate_none
+from stem.connection import authenticate
 
 
 class AnonBrowser(object):
 
-    def __init__(self, limit=5):
+    def __init__(self, limit=5, use_soup=False):
         self.num_requests = 0
         self.request_limit = limit
 
@@ -26,11 +26,11 @@ class AnonBrowser(object):
         self.TorController = None
         self._initTorController()
 
-        self.ctrl_pass = None
-        self._set_ctrl_pass(self.ctrl_pass)
         self._initSocks()
 
         self.ip = self.check_ip()
+
+        self._use_soup = use_soup
 
     def _initTorController(self):
         try:
@@ -40,36 +40,25 @@ class AnonBrowser(object):
             print(e)
 
     def _initSocks(self):
-        try:
-            socks.set_default_proxy(socks.SOCKS5, self.tor_host, self.tor_port)
-            socket.socket = socks.socksocket
-        except Exception as e:
-            print("Socket Error")
-            print(e)
-
-    def _set_ctrl_pass(self, ctrl_pass):
-        if ctrl_pass:
-            self.ctrl_pass = ctrl_pass
-        elif "TOR_CTRL_PASS" in os.environ:
-            self.ctrl_pass = os.environ["TOR_CTRL_PASS"]
+        socks.set_default_proxy(socks.PROXY_TYPE_SOCKS5, self.tor_host, self.tor_port)
+        socket.socket = socks.socksocket
 
     def _newCircuit(self):
-        if self.ctrl_pass:
-            authenticate_password(self.TorController, self.ctrl_pass)
-        else:
-            authenticate_none(self.TorController)
+        self.TorController.authenticate()
         self.TorController.signal(Signal.NEWNYM)
 
     def _rotate_ip(self):
-        attempts = 0
+        attempts = 1
         new_ip = None
-        while attempts < 5:
+        while attempts <= 5:
             self._newCircuit()
             new_ip = self.check_ip()
             if new_ip == self.ip:
-                print("IP did not successfully rotate. Retrying ...")
-                time.sleep(1)
                 attempts += 1
+                if attempts != 6:
+                    print("IP did not successfully rotate. Attempt {} ...".format(attempts))
+                else:
+                    print("Rotation failed. Better luck next time.")
             else:
                 self.ip = new_ip
                 print("New IP: {}".format(self.ip))
@@ -87,4 +76,7 @@ class AnonBrowser(object):
     def get(self, url):
         page = requests.get(url)
         self._update_requests()
-        return BeautifulSoup(page.content, parser='html_parser')
+        if self._use_soup:
+            return BeautifulSoup(page.content, 'html.parser')
+        else:
+            return page
